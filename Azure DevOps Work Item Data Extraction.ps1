@@ -1,9 +1,22 @@
 # Script:        Get DevOps WorkItem Data
-# Last Modified: 4/10/2022 3:30 PM
-#
-# Note: If copying from Repo, add in your Personal-Access-Token (PAT) and sepcify export file location.
 #--------------------------------------------------------------------------------
-# 1. Use WIQL to get a queried for list of Work Items matching certain conditions
+# Instructions:
+#--------------------------------------------------------------------------------
+# 1. Navigate in Azure Devops to your project of interest - make note of your {organization}, {project}, and {team} in DevOps.
+# 
+# 2. Go to "User Settings" at the top right in DevOps and select "Personal access tokens". Create a new token with the security scope and 
+#    expiration (max. 1 year) of your choice. Make sure to copy this new token value, as it is only accessible at the time you create it.
+#
+# 3. Paste the appropriate variable values into the Script below for $token, $organization, $project, and $team. Specify where the exported 
+#    .json data file should be saved to in $exportFileLocation.
+#
+# 4. In the $body variable, specify the criteria for which work items should be queried for. Note that by this REST API design, only the 
+#    Work Item ID and URL are returned no matter what is specified in the SELECT clause - focus instead on the WHERE clause criteria.
+#
+# 5. Customize the $customObject and $exportData variables to output the fields you wish to export for found work items matching your query criteria. 
+#    Working inside PowerShell ISE, auto-complete helped me discover a number of available fields, both default and custom-defined in my custom work item type.
+#--------------------------------------------------------------------------------
+# Section 1. Use WIQL to get a queried for list of Work Items matching certain conditions
 #--------------------------------------------------------------------------------
 $token = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
@@ -19,7 +32,7 @@ $AzureDevOpsAuthenicationHeader = @{Authorization = 'Basic ' + $codedToken}
 $uri = "https://dev.azure.com/$organization/$project/$team/_apis/wit/wiql?api-version=6.0"
 
 $body = @{
-    #NOTE: Ignore the specified columns, only returns ID and URL by design
+    #NOTE: Ignore the specified columns, only returns ID and URL by REST API design
     "query" = "Select [System.Id], 
                       [System.Title], 
                       [System.State],
@@ -32,7 +45,7 @@ $body = @{
 $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $AzureDevOpsAuthenicationHeader -Body $body -ContentType 'application/json'
 
 #--------------------------------------------------------------------------------
-# 2. Use returned list of Work Item ID's to get field Data
+# Section 2. Use returned list of Work Item ID's to get field Data
 #--------------------------------------------------------------------------------
 $exportData = @()
 $tempID = 0
@@ -66,7 +79,8 @@ foreach ($item in $response.workItems) {
     }
 }
 
-$exportData | Select-Object -Property WorkItemID,
+$exportData | Select-Object -Property 
+    WorkItemID,
     URL,
     WorkItemType,
     Title,
