@@ -1,6 +1,6 @@
 # Script:             Tenable Data Export
 #
-# Background:		      Tenable is a software service in my organization which scans all network connected Assets (laptops, desktops, servers, etc.)
+# Background:		  Tenable is a software service in my organization which scans all network connected Assets (laptops, desktops, servers, etc.)
 #                     to see if any known or reported Vulnerabilities have been found require patching/updates.
 #
 # Description:        Allows the authenticated person to call Tenable API and trigger a fresh export of latest Tenable scanned Assets 
@@ -8,7 +8,7 @@
 #                     First all Assets data is exported, followed by all Non-Info (Low, Medium, High, Critial) Vulnerabilities data, 
 #                     and then {Info}rmational Vulnerabilities.
 #
-#					            Note: Each new Export of data gets its own unique {uuid}, which can be used in API to check status of export and retrieve exported data from.
+#					  Note: Each new Export of data gets its own unique {uuid}, which can be used in API to check status of export and retrieve exported data from.
 #
 # Documentation:      https://developer.tenable.com/reference/exports-assets-request-export
 #                     https://developer.tenable.com/reference/exports-vulns-request-export
@@ -70,14 +70,80 @@ Do {
 } Until ($tempAssetStatus.status -eq "FINISHED")
 
 Write-Host "3.  $(Get-Date -Format 'MM/dd/yyyy HH:mm tt') - Downloading data chunk {1} of {$($tempAssetStatus.chunks_available)} for Tenable Assets export {uuid: $($assetExportuuid)}."
-$downloadedAssets = Invoke-RestMethod -Uri "https://cloud.tenable.com/assets/export/$($assetExportuuid)/chunks/1" -Method GET -Headers $headers -UseBasicParsing
+$assetsData = Invoke-RestMethod -Uri "https://cloud.tenable.com/assets/export/$($assetExportuuid)/chunks/1" -Method GET -Headers $headers -UseBasicParsing
+
+# Remove properties we do not need in Power BI data model from being written to file.
+#foreach ($obj in $assetsData) {
+#    $obj.PSObject.Properties.Remove('id')
+#    $obj.PSObject.Properties.Remove('has_agent')
+#    $obj.PSObject.Properties.Remove('has_plugin_results')
+#    $obj.PSObject.Properties.Remove('created_at')
+#    $obj.PSObject.Properties.Remove('terminated_at')
+#    $obj.PSObject.Properties.Remove('terminated_by')
+#    $obj.PSObject.Properties.Remove('updated_at')
+#    $obj.PSObject.Properties.Remove('deleted_at')
+#    $obj.PSObject.Properties.Remove('deleted_by')
+#    $obj.PSObject.Properties.Remove('first_seen')
+#    $obj.PSObject.Properties.Remove('last_seen')
+#    $obj.PSObject.Properties.Remove('first_scan_time')
+#    $obj.PSObject.Properties.Remove('last_scan_time')
+#    $obj.PSObject.Properties.Remove('last_authenticated_scan_date')
+#    $obj.PSObject.Properties.Remove('last_licensed_scan_date')
+#    $obj.PSObject.Properties.Remove('last_scan_id')
+#    $obj.PSObject.Properties.Remove('last_schedule_id')
+#    $obj.PSObject.Properties.Remove('azure_vm_id')
+#    $obj.PSObject.Properties.Remove('azure_resource_id')
+#    $obj.PSObject.Properties.Remove('gcp_project_id')
+#    $obj.PSObject.Properties.Remove('gcp_zone')
+#    $obj.PSObject.Properties.Remove('gcp_instance_id')
+#    $obj.PSObject.Properties.Remove('aws_ec2_isntance_ami_id')
+#    $obj.PSObject.Properties.Remove('aws_ec2_instance_id')
+#    $obj.PSObject.Properties.Remove('agent_uuid')
+#    $obj.PSObject.Properties.Remove('bios_uuid')
+#    $obj.PSObject.Properties.Remove('network_id')
+#    $obj.PSObject.Properties.Remove('network_name')
+#    $obj.PSObject.Properties.Remove('aws_owner_id')
+#    $obj.PSObject.Properties.Remove('aws_availability_zone')
+#    $obj.PSObject.Properties.Remove('aws_region')
+#    $obj.PSObject.Properties.Remove('aws_vpc_id')
+#    $obj.PSObject.Properties.Remove('aws_ec2_instance_group_name')
+#    $obj.PSObject.Properties.Remove('aws_ec2_instance_state_name')
+#    $obj.PSObject.Properties.Remove('aws_ec2_instance_type')
+#    $obj.PSObject.Properties.Remove('aws_subnet_id')
+#    $obj.PSObject.Properties.Remove('aws_ec2_product_code')
+#    $obj.PSObject.Properties.Remove('aws_ec2_name')
+#    $obj.PSObject.Properties.Remove('mcafee_epo_guid')
+#    $obj.PSObject.Properties.Remove('mcafee_epo_agent_guid')
+#    $obj.PSObject.Properties.Remove('servicenow_sysid')
+#    $obj.PSObject.Properties.Remove('bigfix_asset_id')
+#    $obj.PSObject.Properties.Remove('agent_names')
+#    $obj.PSObject.Properties.Remove('installed_software')
+#    $obj.PSObject.Properties.Remove('ipv4s')
+#    $obj.PSObject.Properties.Remove('ipv6s')
+#    $obj.PSObject.Properties.Remove('fqdns')
+#    $obj.PSObject.Properties.Remove('mac_addresses')
+#    $obj.PSObject.Properties.Remove('netbios_names')
+#    $obj.PSObject.Properties.Remove('operating_systems')
+#    $obj.PSObject.Properties.Remove('system_types')
+#    $obj.PSObject.Properties.Remove('hostnames')
+#    $obj.PSObject.Properties.Remove('ssh_fingerprints')
+#    $obj.PSObject.Properties.Remove('qualys_asset_ids')
+#    $obj.PSObject.Properties.Remove('qualys_host_ids')
+#    $obj.PSObject.Properties.Remove('manufacturer_tps_ids')
+#    $obj.PSObject.Properties.Remove('symantec_ep_hardware_keys')
+#    $obj.PSObject.Properties.Remove('sources')
+#    $obj.PSObject.Properties.Remove('tags')
+#    $obj.PSObject.Properties.Remove('network_interfaces')
+#    $obj.PSObject.Properties.Remove('acr_score')
+#    $obj.PSObject.Properties.Remove('exposure_score')
+#}
 
 Write-Host "4.  $(Get-Date -Format 'MM/dd/yyyy HH:mm tt') - Saving Tenable chunk {1} of {$($tempAssetStatus.chunks_available)} exported Assets data to ($($exportFileLocation)Tenable_Data_Assets_All.json) for Power BI Refresh."
-$downloadedAssets | ConvertTo-Json | Out-File "$($exportFileLocation)Tenable_Data_Assets_All.json"
+$assetsData | ConvertTo-Json | Out-File "$($exportFileLocation)Tenable_Data_Assets_All.json"
 
 #Write-Host "Begin saving backup copy of json file with timestamp: $(Get-Date -Format 'MM/dd/yyyy HH:mm')"
 #    b. Create a copy of current json file with date-time stamp.
-#$downloadedAssets.Content | ConvertTo-Json | Out-File "$($exportFileLocation)Tenable_Data_$(Get-Date -Format 'MMddyyyy_HHmm').json"
+#$assetsData.Content | ConvertTo-Json | Out-File "$($exportFileLocation)Tenable_Data_$(Get-Date -Format 'MMddyyyy_HHmm').json"
 
 Write-Host "5.  $(Get-Date -Format 'MM/dd/yyyy HH:mm tt') - Tenable assets {uuid: $($assetExportuuid)} exported from data chunk."
 #--------------------------------------------------------------------------------------------------------------------
@@ -104,10 +170,27 @@ Do {
 # Create a For loop to get each chunk of data?
 
 Write-Host "8.  $(Get-Date -Format 'MM/dd/yyyy HH:mm tt') - Downloading data [chunk] 1 of {$($tempVulnNonInfoStatus.total_chunks)} for Tenable Non-Info Vulnerabilities export {uuid: $($vulnExportuuid)}."
-$downloadVulnerabilities = Invoke-RestMethod -Uri "https://cloud.tenable.com/vulns/export/$($vulnExportuuid)/chunks/1" -Method GET -Headers $headers -UseBasicParsing
+$vulnNonInfoData = Invoke-RestMethod -Uri "https://cloud.tenable.com/vulns/export/$($vulnExportuuid)/chunks/1" -Method GET -Headers $headers -UseBasicParsing
+
+# Remove properties we do not need in Power BI data model from being written to file.
+#foreach ($obj in $vulnNonInfoData) {
+#    $obj.PSObject.Properties.Remove('asset')
+#    $obj.PSObject.Properties.Remove('output')
+#    $obj.PSObject.Properties.Remove('plugin')
+#    $obj.PSObject.Properties.Remove('port')
+#    $obj.PSObject.Properties.Remove('scan')
+#    $obj.PSObject.Properties.Remove('severity')
+#    $obj.PSObject.Properties.Remove('severity_id')
+#    $obj.PSObject.Properties.Remove('severity_default_id')
+#    $obj.PSObject.Properties.Remove('severity_modification_type')
+#    $obj.PSObject.Properties.Remove('first_found')
+#    $obj.PSObject.Properties.Remove('last_found')
+#    $obj.PSObject.Properties.Remove('state')
+#    $obj.PSObject.Properties.Remove('indexed')
+#}
 
 Write-Host "9.  $(Get-Date -Format 'MM/dd/yyyy HH:mm tt') - Saving Tenable [chunk] {1} of {$($tempVulnNonInfoStatus.total_chunks)} exported Non-Info Vulnerabilities data to ($($exportFileLocation)Tenable_Data_Vulnerabilities_NonInfo.json) for Power BI Refresh."
-$downloadVulnerabilities | ConvertTo-Json | Out-File "$($exportFileLocation)Tenable_Data_Vulnerabilities_NonInfo.json"
+$vulnNonInfoData | ConvertTo-Json | Out-File "$($exportFileLocation)Tenable_Data_Vulnerabilities_NonInfo.json"
 
 Write-Host "10. $(Get-Date -Format 'MM/dd/yyyy HH:mm tt') - Tenable Non-Info Vulnerabilities {uuid: $($vulnExportuuid)} exported from data chunk."
 #--------------------------------------------------------------------------------------------------------------------
@@ -131,10 +214,27 @@ Do {
 # Create a For loop to get each chunk of data?
 
 Write-Host "13. $(Get-Date -Format 'MM/dd/yyyy HH:mm tt') - Downloading data [chunk] 1 of {$($tempVunlInfoStatusCheck.total_chunks)} for Tenable Non-Info Vulnerabilities export {uuid: $($vulnExportuuid)}."
-$downloadInfoVulnerabilities = Invoke-RestMethod -Uri "https://cloud.tenable.com/vulns/export/$($vulnInfoExportuuid)/chunks/1" -Method GET -Headers $headers -UseBasicParsing
+$vulnInfoData = Invoke-RestMethod -Uri "https://cloud.tenable.com/vulns/export/$($vulnInfoExportuuid)/chunks/1" -Method GET -Headers $headers -UseBasicParsing
+
+# Remove properties we do not need in Power BI data model from being written to file.
+#foreach ($obj in $vulnInfoData) {
+#    $obj.PSObject.Properties.Remove('asset')
+#    $obj.PSObject.Properties.Remove('output')
+#    $obj.PSObject.Properties.Remove('plugin')
+#    $obj.PSObject.Properties.Remove('port')
+#    $obj.PSObject.Properties.Remove('scan')
+#    $obj.PSObject.Properties.Remove('severity')
+#    $obj.PSObject.Properties.Remove('severity_id')
+#    $obj.PSObject.Properties.Remove('severity_default_id')
+#    $obj.PSObject.Properties.Remove('severity_modification_type')
+#    $obj.PSObject.Properties.Remove('first_found')
+#    $obj.PSObject.Properties.Remove('last_found')
+#    $obj.PSObject.Properties.Remove('state')
+#    $obj.PSObject.Properties.Remove('indexed')
+#}
 
 Write-Host "14. $(Get-Date -Format 'MM/dd/yyyy HH:mm tt') - Saving Tenable [chunk] {1} of {$($tempVunlInfoStatusCheck.total_chunks)} exported {Info}rmational Vulnerabilities data to ($($exportFileLocation)Tenable_Data_Vulnerabilities_Informational.json) for Power BI Refresh."
-$downloadInfoVulnerabilities | ConvertTo-Json | Out-File "$($exportFileLocation)Tenable_Data_Vulnerabilities_InformationalOnly.json"
+$vulnInfoData | ConvertTo-Json | Out-File "$($exportFileLocation)Tenable_Data_Vulnerabilities_InformationalOnly.json"
 
 Write-Host "15. $(Get-Date -Format 'MM/dd/yyyy HH:mm tt') - Tenable {Info}rmational Vulnerabilities {uuid: $($vulnInfoExportuuid)} exported from data chunk."
 
